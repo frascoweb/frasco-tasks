@@ -50,10 +50,18 @@ def run_action(name, **kwargs):
     """Instanciates and executes an action from current_app.
     This is the actual function which will be queued.
     """
-    current_app.features.tasks.before_task_event.send(name=name)
-    action = current_app.actions[name](unpack_task_args(kwargs))
-    rv = execute_action(action)
-    current_app.features.tasks.after_task_event.send(name=name)
+    kwargs = unpack_task_args(kwargs)
+    if '_current_user' in kwargs:
+        current_user = kwargs.pop('_current_user')
+        current_app.features.users.start_user_context(current_user)
+    try:
+        current_app.features.tasks.before_task_event.send(name=name)
+        action = current_app.actions[name](kwargs)
+        rv = execute_action(action)
+        current_app.features.tasks.after_task_event.send(name=name)
+    finally:
+        if current_user:
+            current_app.features.users.stop_user_context()
     return rv
 
 
@@ -118,6 +126,8 @@ class TasksFeature(Feature):
 
     @action(default_option="action")
     def enqueue(self, action, **kwargs):
+        if current_app.features.exists('users') and current_app.features.users.logged_in():
+            kwargs.setdefault('_current_user', current_app.features.users.current)
         result = self.celery.send_task("frasco_run_action", (action,), pack_task_args(kwargs))
         self.task_enqueued_event.send(self, action=action, result=result)
         return result
