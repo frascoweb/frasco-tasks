@@ -51,6 +51,7 @@ def run_action(name, **kwargs):
     This is the actual function which will be queued.
     """
     kwargs = unpack_task_args(kwargs)
+    current_user = None
     if '_current_user' in kwargs:
         current_user = kwargs.pop('_current_user')
         current_app.features.users.start_user_context(current_user)
