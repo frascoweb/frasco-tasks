@@ -97,6 +97,14 @@ class TasksFeature(Feature):
         self.celery.conf["CELERYBEAT_SCHEDULE_FILENAME"] = ".celerybeat-schedule"
         copy_extra_feature_options(self, self.celery.conf, "CELERY_")
 
+        TaskBase = self.celery.Task
+        class ContextTask(TaskBase):
+            abstract = True
+            def __call__(self, *args, **kwargs):
+                with app.app_context():
+                    return TaskBase.__call__(self, *args, **kwargs)
+        self.celery.Task = ContextTask
+
         self.celery.conf["CELERYBEAT_SCHEDULE"] = {}
         if self.options["schedule"]:
             for action, schedule in self.options["schedule"].iteritems():
@@ -133,9 +141,8 @@ class TasksFeature(Feature):
         self.task_enqueued_event.send(self, action=action, result=result)
         return result
 
-    @command(with_reloader=True)
+    @command(with_reloader=True, with_app_ctx=False)
     def worker(self):
-        current_app.logger.handlers = [] # celery provides handlers
         beat = True if self.celery.conf["CELERYBEAT_SCHEDULE"] else False
         w = celery_worker(self.celery)
         w.run(beat=beat)
