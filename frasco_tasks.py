@@ -75,6 +75,7 @@ class TasksFeature(Feature):
                 "result_backend": None,
                 "accept_content": ['json', 'msgpack', 'yaml'],
                 "task_serializer": "json",
+                "result_serializer": "json",
                 "schedule": {}}
 
     before_task_event = signal("before_task")
@@ -94,6 +95,7 @@ class TasksFeature(Feature):
         self.celery = Celery(__name__, broker=broker, backend=backend)
         self.celery.conf["CELERY_ACCEPT_CONTENT"] = self.options["accept_content"]
         self.celery.conf["CELERY_TASK_SERIALIZER"] = self.options["task_serializer"]
+        self.celery.conf["CELERY_RESULT_SERIALIZER"] = self.options["result_serializer"]
         self.celery.conf["CELERYBEAT_SCHEDULE_FILENAME"] = ".celerybeat-schedule"
         copy_extra_feature_options(self, self.celery.conf, "CELERY_")
 
@@ -110,7 +112,7 @@ class TasksFeature(Feature):
             for action, schedule in self.options["schedule"].iteritems():
                 self.schedule_action(action, schedule)
 
-        self.celery.task(name="frasco_run_action")(run_action)
+        self.run_action_task = self.celery.task(name="frasco_run_action")(run_action)
         app.processes.append(("worker", ["frasco", "worker"]))
 
     def add_task(self, func, **kwargs):
@@ -140,6 +142,9 @@ class TasksFeature(Feature):
         result = self.celery.send_task("frasco_run_action", (action,), pack_task_args(kwargs))
         self.task_enqueued_event.send(self, action=action, result=result)
         return result
+
+    def get_result(self, id):
+        return self.run_action_task.AsyncResult(id)
 
     @command(with_reloader=True, with_app_ctx=False)
     def worker(self):
