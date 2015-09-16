@@ -76,7 +76,8 @@ class TasksFeature(Feature):
                 "accept_content": ['json', 'msgpack', 'yaml'],
                 "task_serializer": "json",
                 "result_serializer": "json",
-                "schedule": {}}
+                "schedule": {},
+                "delay_if_models_transaction": False}
 
     before_task_event = signal("before_task")
     after_task_event = signal("after_task")
@@ -137,6 +138,10 @@ class TasksFeature(Feature):
 
     @action(default_option="action")
     def enqueue(self, action, **kwargs):
+        if current_app.features.exists('models') and current_app.features.models.current_transaction is not None \
+          and self.options['delay_if_models_transaction']:
+            current_app.features.models.current_transaction.delay_call(self.enqueue, (action,), kwargs)
+            return
         if current_app.features.exists('users') and current_app.features.users.logged_in():
             kwargs.setdefault('_current_user', current_app.features.users.current)
         result = self.celery.send_task("frasco_run_action", (action,), pack_task_args(kwargs))
