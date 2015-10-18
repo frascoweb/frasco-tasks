@@ -1,6 +1,7 @@
 from frasco import Feature, action, execute_action, command, current_app, import_string, signal, copy_extra_feature_options
 from celery import Celery
 from celery.bin.worker import worker as celery_worker
+from celery.bin.beat import beat as celery_beat
 from celery.schedules import crontab
 
 
@@ -77,7 +78,8 @@ class TasksFeature(Feature):
                 "task_serializer": "json",
                 "result_serializer": "json",
                 "schedule": {},
-                "delay_if_models_transaction": False}
+                "delay_if_models_transaction": False,
+                "run_beat_with_worker": True}
 
     before_task_event = signal("before_task")
     after_task_event = signal("after_task")
@@ -115,6 +117,8 @@ class TasksFeature(Feature):
 
         self.run_action_task = self.celery.task(name="frasco_run_action")(run_action)
         app.processes.append(("worker", ["frasco", "worker"]))
+        if not self.options['run_beat_with_worker']:
+            app.processes.append(("scheduler", ["frasco", "scheduler"]))
 
     def add_task(self, func, **kwargs):
         return self.celery.task(**kwargs)(func)
@@ -153,6 +157,13 @@ class TasksFeature(Feature):
 
     @command(with_reloader=True, with_app_ctx=False)
     def worker(self):
-        beat = True if self.celery.conf["CELERYBEAT_SCHEDULE"] else False
+        beat = False
+        if self.options['run_beat_with_worker'] and self.celery.conf["CELERYBEAT_SCHEDULE"]:
+            beat = True
         w = celery_worker(self.celery)
         w.run(beat=beat)
+
+    @command(with_reloader=True, with_app_ctx=False)
+    def scheduler(self):
+        b = celery_beat(self.celery)
+        b.run()
