@@ -148,7 +148,7 @@ class TasksFeature(Feature):
             return
         if current_app.features.exists('users') and current_app.features.users.logged_in():
             kwargs.setdefault('_current_user', current_app.features.users.current)
-        result = self.celery.send_task("frasco_run_action", (action,), pack_task_args(kwargs))
+        result = self.run_action_task.apply_async(args=(action,), kwargs=pack_task_args(kwargs))
         self.task_enqueued_event.send(self, action=action, result=result)
         return result
 
