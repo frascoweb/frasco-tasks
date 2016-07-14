@@ -1,4 +1,4 @@
-from frasco import Feature, action, execute_action, command, current_app, import_string, signal, copy_extra_feature_options
+from frasco import Feature, action, execute_action, command, current_app, import_string, signal, copy_extra_feature_options, has_app_context
 from celery import Celery
 from celery.bin.worker import worker as celery_worker
 from celery.bin.beat import beat as celery_beat
@@ -106,8 +106,12 @@ class TasksFeature(Feature):
         class ContextTask(TaskBase):
             abstract = True
             def __call__(self, *args, **kwargs):
-                with app.app_context():
+                if has_app_context():
+                    # useful for testing if running tasks synchronously
                     return TaskBase.__call__(self, *args, **kwargs)
+                else:
+                    with app.app_context():
+                        return TaskBase.__call__(self, *args, **kwargs)
         self.celery.Task = ContextTask
 
         self.celery.conf["CELERYBEAT_SCHEDULE"] = {}
