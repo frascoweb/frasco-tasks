@@ -86,6 +86,7 @@ class TasksFeature(Feature):
     task_enqueued_event = signal("task_enqueued")
 
     def init_app(self, app):
+        self.app = app
         broker = self.options["broker_url"]
         backend = self.options["result_backend"]
         if not broker:
@@ -161,11 +162,13 @@ class TasksFeature(Feature):
 
     @command(with_reloader=True, with_app_ctx=False)
     def worker(self, hostname=None):
-        beat = False
+        options = {'hostname': hostname, 'beat': False}
         if self.options['run_beat_with_worker'] and self.celery.conf["CELERYBEAT_SCHEDULE"]:
-            beat = True
+            options['beat'] = True
+        if self.app.debug:
+            options['concurrency'] = 1
         w = celery_worker(self.celery)
-        w.run(beat=beat, hostname=hostname)
+        w.run(**options)
 
     @command(with_reloader=True, with_app_ctx=False)
     def scheduler(self):
