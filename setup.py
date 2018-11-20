@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='frasco-tasks',
-    version='0.4.4',
+    version='0.4.5',
     url='http://github.com/frascoweb/frasco-tasks',
     license='MIT',
     author='Maxime Bouroumeau-Fuseau',
@@ -14,6 +14,6 @@ setup(
     platforms='any',
     install_requires=[
         'frasco',
-        'celery-with-redis>=3.0'
+        'celery-with-redis==3.0'
     ]
 )
