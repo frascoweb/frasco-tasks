@@ -147,9 +147,9 @@ class TasksFeature(Feature):
 
     @action(default_option="action")
     def enqueue(self, action, **kwargs):
-        if current_app.features.exists('models') and current_app.features.models.current_transaction is not None \
+        if current_app.features.exists('models') and current_app.features.models.delayed_tx_calls.top is not None \
           and self.options['delay_if_models_transaction']:
-            current_app.features.models.current_transaction.delay_call(self.enqueue, (action,), kwargs)
+            current_app.features.models.delayed_tx_calls.call(self.enqueue, (action,), kwargs)
             return
         if current_app.features.exists('users') and current_app.features.users.logged_in():
             kwargs.setdefault('_current_user', current_app.features.users.current)

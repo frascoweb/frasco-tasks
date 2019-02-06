@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='frasco-tasks',
-    version='0.4.5',
+    version='0.5.0',
     url='http://github.com/frascoweb/frasco-tasks',
     license='MIT',
     author='Maxime Bouroumeau-Fuseau',
